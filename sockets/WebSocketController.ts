@@ -23,7 +23,7 @@ export const onWsMessage = async (socket: WebSocket, message: string) => {
     const msg = parseMessage(message);
     switch (msg.method) {
         case Methods.get:
-            handleGet(msg);
+            handleGet(socket, msg);
             break;
         case Methods.set:
             handleSet(msg);
@@ -34,7 +34,7 @@ export const onWsMessage = async (socket: WebSocket, message: string) => {
 // -------------------------------------------------------------
 // Functions
 // -------------------------------------------------------------
-const handleGet = (msg: WsMessage): void => {
+const handleGet = (socket, msg: WsMessage): void => {
     switch (msg.fct) {
         case Functions.power:
             Device.raw(getStatus(msg.zone));
@@ -45,6 +45,9 @@ const handleGet = (msg: WsMessage): void => {
         case Functions.equalizer:
             console.log(getEqualizer());
             Device.raw('ACEQSTN');
+            break;
+        case Functions.stats:
+            socket.send(JSON.stringify({main: DeviceZoneMainActive, zone2: DeviceZone2Active}))
             break;
         default:
             console.log('unhandled function');
@@ -81,13 +84,14 @@ const handleSet = (msg: WsMessage): void => {
 
 enum Methods {
     get = 'g',
-    set = 's'
+    set = 's',
 }
 
 enum Functions {
     power = 'pwr',
     volume = 'vol',
     equalizer = 'eq',
+    stats = 'st'
 }
 
 export interface WsMessage {

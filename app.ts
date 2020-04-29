@@ -118,6 +118,7 @@ Device.on('data', (data) => {
     console.log('Device Stats: ');
     console.log(` > Main  : ${DeviceZoneMainActive ? 'on ' : 'off'} -  Volume: ${DeviceZoneMainVolume}`);
     console.log(` > Zone2 : ${DeviceZone2Active ? 'on ' : 'off'} - Volume: ${DeviceZone2Volume}`);
+
 })
 
 Device.on('close', (data) => {

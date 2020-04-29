@@ -3,9 +3,9 @@ echo "Starting deployment"
 echo "  Building..."
 tsc
 
-USER=root
-HOST=children-of-gazimba.io
-PATH=/home/hGen/servers/secure-login
+USER=pi
+HOST=192.168.178.100
+PATH=/home/pi/dwight/backend
 
 echo "  Deploying archive"
 /usr/bin/scp -r build/ $USER@$HOST:$PATH
