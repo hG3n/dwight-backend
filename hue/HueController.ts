@@ -56,8 +56,7 @@ export const discoverAndCreateUser = async () => {
 const SUBWOOFER_PLUG_NAME = 'SubwooferPlug';
 const hueCredentials = {
     user: 'Xt64koMaoe4fdzddiZjov3s2uLUOCkRpolrRXB7A',
-    key: 'D121EFB75D5968C25C56EBD527B27EBE',
-    ip: null
+    key: 'D121EFB75D5968C25C56EBD527B27EBE'
 };
 export const setPlugState = (state: boolean) => {
     console.log('setting plug state',state);
