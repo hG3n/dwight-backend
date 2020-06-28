@@ -57,9 +57,7 @@ app.use('/info', InfoController);
  */
 export var SubwooferPlugState: boolean;
 SubwooferPlugState = false;
-setPlugState(false).then(result => {
-    console.log('initial', result);
-});
+setPlugState(false).then(result => SubwooferPlugState = result);
 
 /**
  * Receiver control
@@ -120,12 +118,10 @@ Device.on('data', (data) => {
             DeviceZoneMainActive = on;
             if (on) {
                 if (!SubwooferPlugState) {
-                    console.log('setting plug state');
                     setPlugState(true).then(result => SubwooferPlugState = result.on)
                 }
             } else {
                 if (SubwooferPlugState) {
-                    console.log('setting plug state');
                     setPlugState(false).then(result => SubwooferPlugState = result.on)
                 }
             }

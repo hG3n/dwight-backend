@@ -59,17 +59,6 @@ const hueCredentials = {
     key: 'D121EFB75D5968C25C56EBD527B27EBE'
 };
 export const setPlugState = (state: boolean) => {
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
-    console.log('SETTING PLUG STATE',state);
     return v3.discovery.nupnpSearch()
         .then((searchResults) => {
             const host = searchResults[0].ipaddress;
