@@ -1,5 +1,4 @@
-import express, {Application} from 'express';
-import mongoose from 'mongoose';
+import express, {Application, Request, Response} from 'express';
 import config from 'config';
 import * as http from "http";
 import * as bodyParser from "body-parser";
@@ -8,8 +7,14 @@ import morgan from 'morgan';
 import eiscp from 'eiscp';
 
 import {InfoController} from "./info/InfoController";
-import {onOpen, onWsClose, onWsError, onWsMessage, parseMessage} from "./sockets/WebSocketController";
-import {buildEqString, getEqualizer, getStatus, getVolume} from "./sockets/ReceiverController";
+import {ListeningModes, onOpen, onWsClose, onWsError, onWsMessage} from "./sockets/WebSocketController";
+import {getStatus, getVolume, listeningMode} from "./sockets/ReceiverController";
+import compression from "compression";
+import {discoverAndCreateUser, discoverBridge, setPlugState} from "./hue/HueController";
+import {v3} from "node-hue-api";
+import * as hue from 'node-hue-api';
+import {debuglog} from "util";
+
 
 // /**
 //  * db
@@ -29,6 +34,7 @@ const app: Application = express();
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(compression())
 
 // create server and socket
 const server: http.Server = http.createServer(app);
@@ -42,8 +48,18 @@ const wss: WebSocket.Server = new WebSocket.Server(
 /**
  * define routes
  */
+// further routes
 app.use('/info', InfoController);
 
+
+/**
+ * HUE
+ */
+export var SubwooferPlugState: boolean;
+SubwooferPlugState = false;
+setPlugState(false).then(result => {
+    console.log('initial', result);
+});
 
 /**
  * Receiver control
@@ -57,16 +73,19 @@ const eiscp_config = {
 export declare let Device;
 export declare let DeviceConnected: boolean;
 export declare let DeviceZoneMainActive: boolean;
-export declare let DeviceZone2Active: boolean;
 export declare let DeviceZoneMainVolume: number;
+export declare let DeviceZoneMainMuted: boolean;
+export declare let DeviceZone2Active: boolean;
 export declare let DeviceZone2Volume: number;
+export declare let DeviceListeningMode: ListeningModes;
 
 Device = eiscp
 DeviceConnected = false;
 DeviceZoneMainActive = false;
+DeviceZoneMainVolume = 0;
+DeviceZoneMainMuted = false;
 DeviceZone2Active = false;
-DeviceZoneMainVolume = null;
-DeviceZone2Volume = null;
+DeviceZone2Volume = 0;
 
 Device.connect(eiscp_config, () => {
     DeviceConnected = true;
@@ -74,14 +93,11 @@ Device.connect(eiscp_config, () => {
 
 Device.on('connect', () => {
     console.log('Successfully connected to device');
-    // const old_eq = [-6, -3, -1, +1, +3, +4, +5, +6, +7];
-    // const new_eq = [-7, -4, -1, +1, +3, +4, +5, +6, +7]
     Device.raw(getStatus(0));
     Device.raw(getStatus(1));
-
     Device.raw(getVolume(0));
     Device.raw(getVolume(1));
-
+    Device.raw(listeningMode())
 })
 
 Device.on('error', (error) => {
@@ -93,19 +109,29 @@ Device.on('debug', (dbg) => {
 })
 
 Device.on('data', (data) => {
-    // console.log(data);
     const cmd = data.command;
     const iscp_cmd = data.iscp_command as string;
     const zone = data.zone as string;
 
-    if (cmd == 'power' || cmd == 'system-power') {
+    if (cmd === 'power' || cmd === 'system-power') {
         const zone = data.zone;
         if (zone === 'main') {
-            DeviceZoneMainActive = data.argument === 'on';
+            const on = data.argument === 'on';
+            DeviceZoneMainActive = on;
+            if (on) {
+                if (!SubwooferPlugState) {
+                    setPlugState(true).then(result => SubwooferPlugState = result.on)
+                }
+            } else {
+                if (SubwooferPlugState) {
+                    setPlugState(false).then(result => SubwooferPlugState = result.on)
+                }
+            }
         } else if (zone === 'zone2') {
             DeviceZone2Active = data.argument === 'on';
         }
     }
+
 
     if (iscp_cmd.startsWith('MVL') || iscp_cmd.startsWith('ZVL')) {
         if (zone == 'main') {
@@ -115,10 +141,25 @@ Device.on('data', (data) => {
         }
     }
 
-    console.log('Device Stats: ');
-    console.log(` > Main  : ${DeviceZoneMainActive ? 'on ' : 'off'} -  Volume: ${DeviceZoneMainVolume}`);
-    console.log(` > Zone2 : ${DeviceZone2Active ? 'on ' : 'off'} - Volume: ${DeviceZone2Volume}`);
+    if (cmd === 'listening-mode') {
+        if (data.argument === 'all-ch-stereo') {
+            DeviceListeningMode = ListeningModes.allChannelStereo;
+        } else if (data.argument === 'stereo') {
+            DeviceListeningMode = ListeningModes.stereo;
+        } else if (iscp_cmd === 'LMDFF') {
+            DeviceListeningMode = ListeningModes.auto;
+        } else if (iscp_cmd === 'LMD80') {
+            DeviceListeningMode = ListeningModes.dolby;
+        }
+    }
 
+    if (cmd === 'audio-muting') {
+        if (data.argument === 'on') {
+            DeviceZoneMainMuted = true;
+        } else {
+            DeviceZoneMainMuted = false;
+        }
+    }
 })
 
 Device.on('close', (data) => {

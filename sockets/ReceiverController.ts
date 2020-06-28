@@ -1,3 +1,13 @@
+import {
+    DeviceListeningMode,
+    DeviceZone2Active,
+    DeviceZone2Volume,
+    DeviceZoneMainActive,
+    DeviceZoneMainMuted,
+    DeviceZoneMainVolume
+} from "../app";
+import {ListeningModes} from "./WebSocketController";
+
 export const buildEqString = (numbers: number[]): string => {
     let s = '';
     for (const num of numbers) {
@@ -25,6 +35,35 @@ export const power = (zone: number, value: number | string): string => {
     return `${cmd}${val}`;
 }
 
+export const listeningMode = (value: ListeningModes = ListeningModes.qstn): string => {
+    const cmd = 'LMD';
+    let mode = 'QSTN'
+    switch (value) {
+        case ListeningModes.allChannelStereo:
+            mode = '0C'
+            break;
+        case ListeningModes.auto:
+            mode = 'FF'
+            break;
+        case ListeningModes.stereo:
+            mode = '00'
+            break
+        case ListeningModes.dolby:
+            mode = '80'
+    }
+    return `${cmd}${mode}`
+}
+
+export const volume = (zone: number, value: number | string): string => {
+    const cmd = zone === 0 ? 'MVL' : 'ZVL';
+    return `${cmd}${value}`;
+}
+
+export const mute = (zone: number, value: number | string): string => {
+    const cmd = zone === 0 ? 'AMT' : 'ZMT'
+    return `${cmd}${+value === 1 ? '01' : '00'}`;
+}
+
 export const getStatus = (zone: number): string => {
     return zone === 0 ? 'PWRQSTN' : 'ZPWQSTN';
 }
@@ -45,6 +84,15 @@ export const decreaseVolume = (zone: number, fast: boolean): string => {
 
 export const getEqualizer = (): string => {
     return 'ACEQSTN';
+}
+
+export const getOverallStatus = (): any => {
+    return {
+        power: {main: DeviceZoneMainActive, zone2: DeviceZone2Active},
+        volume: {main: DeviceZoneMainVolume, zone2: DeviceZone2Volume},
+        mute: {main: DeviceZoneMainMuted},
+        listeningMode: DeviceListeningMode,
+    }
 }
 
 
