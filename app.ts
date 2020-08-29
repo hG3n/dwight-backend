@@ -10,10 +10,9 @@ import {InfoController} from "./info/InfoController";
 import {ListeningModes, onOpen, onWsClose, onWsError, onWsMessage} from "./sockets/WebSocketController";
 import {getStatus, getVolume, listeningMode} from "./sockets/ReceiverController";
 import compression from "compression";
-import {discoverAndCreateUser, discoverBridge, setPlugState} from "./hue/HueController";
-import {v3} from "node-hue-api";
-import * as hue from 'node-hue-api';
-import {debuglog} from "util";
+import {setPlugState} from "./hue/HueController";
+import * as dgram from "dgram";
+import {SocketOptions} from "dgram";
 
 
 // /**
@@ -89,8 +88,8 @@ Device.connect(eiscp_config, () => {
     DeviceConnected = true;
 });
 
-Device.on('connect', () => {
-    console.log('Successfully connected to device');
+Device.on('connect', (ip) => {
+    console.log(`Successfully connected to: ${ip}`);
     Device.raw(getStatus(0));
     Device.raw(getStatus(1));
     Device.raw(getVolume(0));
@@ -175,5 +174,33 @@ wss.on('connection', (ws: WebSocket) => {
     ws.on('close', (code, reason: string) => onWsClose(code, reason));
 });
 
+
+/**
+ * Remote Socket
+ */
+const UDP_SERVER_PORT = 42002;
+const UDP_SERVER_ADDR = '0.0.0.0'
+const udpServer = dgram.createSocket('udp4');
+
+udpServer.on('listening', () => {
+    const address = udpServer.address() as any;
+    console.log(`UDP server listening on: ${address.address}:${address.port}`);
+});
+
+udpServer.on("connect", () => {
+    console.log('A client has connected');
+})
+
+udpServer.on('error', (err) => {
+    console.log(`server error:\n${err.stack}`);
+    server.close();
+});
+
+udpServer.on('message', (msg, rinfo) => {
+    console.log('rin', rinfo);
+    console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+});
+
+udpServer.bind(UDP_SERVER_PORT, UDP_SERVER_ADDR);
 
 export {server};
