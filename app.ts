@@ -13,6 +13,7 @@ import compression from "compression";
 import {setPlugState} from "./hue/HueController";
 import * as dgram from "dgram";
 import {SocketOptions} from "dgram";
+import * as net from "net";
 
 
 // /**
@@ -178,6 +179,7 @@ wss.on('connection', (ws: WebSocket) => {
 /**
  * Remote Socket
  */
+
 const UDP_SERVER_PORT = 42002;
 const UDP_SERVER_ADDR = '0.0.0.0'
 const udpServer = dgram.createSocket('udp4');
