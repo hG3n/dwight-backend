@@ -1,9 +1,8 @@
-import {SubwooferPlugState} from "../app";
+import {loadavg} from "os";
 
 const v3 = require('node-hue-api').v3
     , discovery = v3.discovery
-    , hueApi = v3.api
-;
+    , hueApi = v3.api;
 
 const appName = 'dwight';
 const deviceName = 'example-code';
@@ -58,27 +57,67 @@ const hueCredentials = {
     user: 'Xt64koMaoe4fdzddiZjov3s2uLUOCkRpolrRXB7A',
     key: 'D121EFB75D5968C25C56EBD527B27EBE'
 };
-export const setPlugState = (state: boolean) => {
+
+const createHueSession = () => {
     return v3.discovery.nupnpSearch()
         .then((searchResults) => {
             const host = searchResults[0].ipaddress;
             return v3.api.createLocal(host).connect(hueCredentials.user);
         })
-        .then(async (api) => {
-            return Promise.resolve({api, lights: await api.lights.getAll()})
-        })
+}
+
+const getAvailableHueDevices = () => {
+    return createHueSession().then(async (api) => {
+        return Promise.resolve({api, lights: await api.lights.getAll()})
+    })
+}
+
+const getAvailableHueGroups = () => {
+    return createHueSession().then(async (api) => {
+        return Promise.resolve({api, lights: await api.groups.getAll()})
+    })
+}
+
+export const setPlugState = (state: boolean) => {
+    return getAvailableHueDevices()
         .then(async (results) => {
             const api = results.api;
             const plug = results.lights.find(el => el.name === SUBWOOFER_PLUG_NAME);
-            const result = {
-                api,
-                plug,
-                prevOperationSuccess: await api.lights.setLightState(plug.id, {on: state})
-            }
-            return Promise.resolve(result);
+            return Promise.resolve({
+                api, plug, prevOperationSuccess: await api.lights.setLightState(plug.id, {on: state})
+            });
         })
         .then(async (data) => {
             return data.api.lights.getLightState(data.plug.id);
+        })
+}
+
+export const setZoneState = (zone: string, state: boolean) => {
+    return getAvailableHueGroups()
+        .then(async (results) => {
+            const api = results.api;
+            const scene = results.lights.find(el => el.name === zone);
+            return Promise.resolve({
+                api, scene, prevOperationSuccess: await api.groups.setGroupState(scene.id, {on: state})
+            });
+        })
+        .then(async (data) => {
+            return data.api.groups.getGroupState(data.scene.id);
+        })
+
+}
+
+export const setLightState = (name: string, state: boolean) => {
+    return getAvailableHueDevices()
+        .then(async (results) => {
+            const api = results.api;
+            const light = results.lights.find(el => el.name === name);
+            return Promise.resolve({
+                api, light, prevOperationSuccess: await api.lights.setLightState(light.id, {on: state})
+            });
+        })
+        .then(async (data) => {
+            return data.api.lights.getLightState(data.light.id);
         })
 }
 

@@ -10,7 +10,7 @@ import {InfoController} from "./info/InfoController";
 import {ListeningModes, onOpen, onWsClose, onWsError, onWsMessage} from "./sockets/WebSocketController";
 import {getStatus, getVolume, listeningMode} from "./sockets/ReceiverController";
 import compression from "compression";
-import {setPlugState} from "./hue/HueController";
+import {setLightState, setPlugState, setZoneState} from "./hue/HueController";
 import * as dgram from "dgram";
 import {SocketOptions} from "dgram";
 import * as net from "net";
@@ -85,12 +85,12 @@ DeviceZoneMainMuted = false;
 DeviceZone2Active = false;
 DeviceZone2Volume = 0;
 
+
 Device.connect(eiscp_config, () => {
     DeviceConnected = true;
 });
 
 Device.on('connect', (ip) => {
-    console.log(`Successfully connected to: ${ip}`);
     Device.raw(getStatus(0));
     Device.raw(getStatus(1));
     Device.raw(getVolume(0));
@@ -99,11 +99,18 @@ Device.on('connect', (ip) => {
 })
 
 Device.on('error', (error) => {
-    // console.log(error)
+    console.log('### Receiver Error')
+    console.log('------------------')
+    console.log('\t');
+    console.log(error)
+    console.log('')
 })
 
 Device.on('debug', (dbg) => {
-    // console.log(dbg);
+    console.log('### Receiver Debug')
+    console.log('------------------')
+    console.log('\t', dbg);
+    console.log('')
 })
 
 Device.on('data', (data) => {
@@ -111,11 +118,13 @@ Device.on('data', (data) => {
     const iscp_cmd = data.iscp_command as string;
     const zone = data.zone as string;
 
+    console.log('cmd', cmd);
     if (cmd === 'power' || cmd === 'system-power') {
         const zone = data.zone;
         if (zone === 'main') {
             const on = data.argument === 'on';
             DeviceZoneMainActive = on;
+            console.log('subwoofer state', SubwooferPlugState);
             if (on) {
                 if (!SubwooferPlugState) {
                     setPlugState(true).then(result => SubwooferPlugState = result.on)
@@ -183,6 +192,30 @@ wss.on('connection', (ws: WebSocket) => {
 const UDP_SERVER_PORT = 42002;
 const UDP_SERVER_ADDR = '0.0.0.0'
 const udpServer = dgram.createSocket('udp4');
+let last_received = '';
+
+const light_mapping = [
+    {
+        id: 1,
+        type: 'scene',
+        name: 'Lights'
+    },
+    {
+        id: 2,
+        type: 'light',
+        name: 'Desk Corner'
+    },
+    {
+        id: 3,
+        type: 'light',
+        name: 'Bed R'
+    },
+    {
+        id: 4,
+        type: 'light',
+        name: 'Door'
+    },
+]
 
 udpServer.on('listening', () => {
     const address = udpServer.address() as any;
@@ -199,8 +232,23 @@ udpServer.on('error', (err) => {
 });
 
 udpServer.on('message', (msg, rinfo) => {
-    console.log('rin', rinfo);
-    console.log(`server got: ${msg} from ${rinfo.address}:${rinfo.port}`);
+    const msg_str = msg.toString('utf-8');
+    if (msg_str.length > 1) {
+        if (msg_str !== last_received) {
+            const id = +msg_str[0];
+            const state = +msg_str[1];
+            const light = light_mapping.find((el) => el.id === id)
+            last_received = msg_str;
+            switch (light.type) {
+                case 'light':
+                    setLightState(light.name, state === 1);
+                    break;
+                case 'scene':
+                    setZoneState(light.name, state === 1);
+                    break;
+            }
+        }
+    }
 });
 
 udpServer.bind(UDP_SERVER_PORT, UDP_SERVER_ADDR);
