@@ -99,7 +99,7 @@ Device.on('connect', (ip) => {
 })
 
 Device.on('error', (error) => {
-    console.log('### Receiver Error')
+    console.log('\n### Receiver Error')
     console.log('------------------')
     console.log('\t');
     console.log(error)
@@ -107,7 +107,7 @@ Device.on('error', (error) => {
 })
 
 Device.on('debug', (dbg) => {
-    console.log('### Receiver Debug')
+    console.log('\n### Receiver Debug')
     console.log('------------------')
     console.log('\t', dbg);
     console.log('')
