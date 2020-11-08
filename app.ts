@@ -85,6 +85,8 @@ DeviceZoneMainMuted = false;
 DeviceZone2Active = false;
 DeviceZone2Volume = 0;
 
+const device_verbose_error = false;
+const device_verbose_dbg = false;
 
 Device.connect(eiscp_config, () => {
     DeviceConnected = true;
@@ -99,18 +101,22 @@ Device.on('connect', (ip) => {
 })
 
 Device.on('error', (error) => {
-    console.log('\n### Receiver Error')
-    console.log('------------------')
-    console.log('\t');
-    console.log(error)
-    console.log('')
+    if (device_verbose_error) {
+        console.log('\n### Receiver Error')
+        console.log('------------------')
+        console.log('\t');
+        console.log(error)
+        console.log('')
+    }
 })
 
 Device.on('debug', (dbg) => {
-    console.log('\n### Receiver Debug')
-    console.log('------------------')
-    console.log('\t', dbg);
-    console.log('')
+    if (device_verbose_dbg) {
+        console.log('\n### Receiver Debug')
+        console.log('------------------')
+        console.log('\t', dbg);
+        console.log('')
+    }
 })
 
 Device.on('data', (data) => {
