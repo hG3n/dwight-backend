@@ -72,7 +72,7 @@ const handleSet = (socket: WebSocket, msg: WsMessage): void => {
             } else {
                 Device.raw(power(msg.zone, msg.value));
             }
-            socket.send(JSON.stringify(getOverallStatus()))
+            socket.send(JSON.stringify(getMsg(true, 'status', getOverallStatus())))
             break;
         case Functions.volume:
             if (msg.value > 0) {

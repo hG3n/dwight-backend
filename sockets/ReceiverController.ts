@@ -88,11 +88,22 @@ export const getEqualizer = (): string => {
 
 export const getOverallStatus = (): any => {
     return {
-        power: {main: DeviceZoneMainActive, zone2: DeviceZone2Active},
-        volume: {main: DeviceZoneMainVolume, zone2: DeviceZone2Volume},
-        mute: {main: DeviceZoneMainMuted},
-        listeningMode: DeviceListeningMode,
+        main: {
+            power: DeviceZoneMainActive,
+            volume: DeviceZoneMainVolume ? DeviceZoneMainVolume : 0,
+            muted: DeviceZoneMainMuted
+        },
+        zone2: {
+            power: DeviceZone2Active,
+            volume: DeviceZone2Volume,
+        }
     }
+    // return {
+    //     power: {main: DeviceZoneMainActive, zone2: DeviceZone2Active},
+    //     volume: {main: DeviceZoneMainVolume, zone2: DeviceZone2Volume},
+    //     mute: {main: DeviceZoneMainMuted},
+    //     listeningMode: DeviceListeningMode,
+    // }
 }
 
 
