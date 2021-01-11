@@ -194,12 +194,10 @@ wss.on('connection', (ws: WebSocket) => {
 /**
  * Remote Socket
  */
-
-const UDP_SERVER_PORT = 42002;
+const BLE_UDP_SERVER_PORT = 42002;
 const UDP_SERVER_ADDR = '0.0.0.0'
-const udpServer = dgram.createSocket('udp4');
+const bluetoothRemoteSocket = dgram.createSocket('udp4');
 let last_received = '';
-
 const light_mapping = [
     {
         id: 1,
@@ -223,21 +221,21 @@ const light_mapping = [
     },
 ]
 
-udpServer.on('listening', () => {
-    const address = udpServer.address() as any;
+bluetoothRemoteSocket.on('listening', () => {
+    const address = bluetoothRemoteSocket.address() as any;
     console.log(`UDP server listening on: ${address.address}:${address.port}`);
 });
 
-udpServer.on("connect", () => {
+bluetoothRemoteSocket.on("connect", () => {
     console.log('A client has connected');
 })
 
-udpServer.on('error', (err) => {
+bluetoothRemoteSocket.on('error', (err) => {
     console.log(`server error:\n${err.stack}`);
     server.close();
 });
 
-udpServer.on('message', (msg, rinfo) => {
+bluetoothRemoteSocket.on('message', (msg, rinfo) => {
     const msg_str = msg.toString('utf-8');
     if (msg_str.length > 1) {
         if (msg_str !== last_received) {
@@ -257,6 +255,31 @@ udpServer.on('message', (msg, rinfo) => {
     }
 });
 
-udpServer.bind(UDP_SERVER_PORT, UDP_SERVER_ADDR);
+bluetoothRemoteSocket.bind(BLE_UDP_SERVER_PORT, UDP_SERVER_ADDR);
+
+/**
+ * IR REMOTE SOCKET
+ */
+const irRemoteSocket = dgram.createSocket('udp4');
+let last = '';
+bluetoothRemoteSocket.on('listening', () => {
+    const address = bluetoothRemoteSocket.address() as any;
+    console.log(`UDP server listening on: ${address.address}:${address.port}`);
+});
+
+bluetoothRemoteSocket.on("connect", () => {
+    console.log('A client has connected');
+})
+
+bluetoothRemoteSocket.on('error', (err) => {
+    console.log(`server error:\n${err.stack}`);
+    server.close();
+});
+
+bluetoothRemoteSocket.on('message', (msg, rinfo) => {
+    console.log('message received', msg);
+});
+
+bluetoothRemoteSocket.bind(42003, UDP_SERVER_ADDR);
 
 export {server};
