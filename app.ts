@@ -10,10 +10,8 @@ import {InfoController} from "./info/InfoController";
 import {ListeningModes, onOpen, onWsClose, onWsError, onWsMessage} from "./sockets/WebSocketController";
 import {getStatus, getVolume, listeningMode} from "./sockets/ReceiverController";
 import compression from "compression";
-import {setLightState, setPlugState, setZoneState} from "./hue/HueController";
+import { setPlugState, toggleSceneForGroup, turnAllZonesOff} from "./hue/HueController";
 import * as dgram from "dgram";
-import {SocketOptions} from "dgram";
-import * as net from "net";
 
 
 // /**
@@ -191,95 +189,111 @@ wss.on('connection', (ws: WebSocket) => {
 });
 
 
-/**
- * Remote Socket
- */
-const BLE_UDP_SERVER_PORT = 42002;
-const UDP_SERVER_ADDR = '0.0.0.0'
-const bluetoothRemoteSocket = dgram.createSocket('udp4');
-let last_received = '';
-const light_mapping = [
-    {
-        id: 1,
-        type: 'scene',
-        name: 'Lights'
-    },
-    {
-        id: 2,
-        type: 'light',
-        name: 'Desk Corner'
-    },
-    {
-        id: 3,
-        type: 'light',
-        name: 'Bed R'
-    },
-    {
-        id: 4,
-        type: 'light',
-        name: 'Door'
-    },
-]
-
-bluetoothRemoteSocket.on('listening', () => {
-    const address = bluetoothRemoteSocket.address() as any;
-    console.log(`UDP server listening on: ${address.address}:${address.port}`);
-});
-
-bluetoothRemoteSocket.on("connect", () => {
-    console.log('A client has connected');
-})
-
-bluetoothRemoteSocket.on('error', (err) => {
-    console.log(`server error:\n${err.stack}`);
-    server.close();
-});
-
-bluetoothRemoteSocket.on('message', (msg, rinfo) => {
-    const msg_str = msg.toString('utf-8');
-    if (msg_str.length > 1) {
-        if (msg_str !== last_received) {
-            const id = +msg_str[0];
-            const state = +msg_str[1];
-            const light = light_mapping.find((el) => el.id === id)
-            last_received = msg_str;
-            switch (light.type) {
-                case 'light':
-                    setLightState(light.name, state === 1);
-                    break;
-                case 'scene':
-                    setZoneState(light.name, state === 1);
-                    break;
-            }
-        }
-    }
-});
-
-bluetoothRemoteSocket.bind(BLE_UDP_SERVER_PORT, UDP_SERVER_ADDR);
+// /**
+//  * Remote Socket
+//  */
+// const BLE_UDP_SERVER_PORT = 42002;
+// const bluetoothRemoteSocket = dgram.createSocket('udp4');
+// let last_received = '';
+// const light_mapping = [
+//     {
+//         id: 1,
+//         type: 'scene',
+//         name: 'Lights'
+//     },
+//     {
+//         id: 2,
+//         type: 'light',
+//         name: 'Desk Corner'
+//     },
+//     {
+//         id: 3,
+//         type: 'light',
+//         name: 'Bed R'
+//     },
+//     {
+//         id: 4,
+//         type: 'light',
+//         name: 'Door'
+//     },
+// ]
+//
+// bluetoothRemoteSocket.on('listening', () => {
+//     const address = bluetoothRemoteSocket.address() as any;
+//     console.log(`UDP server listening on: ${address.address}:${address.port}`);
+// });
+//
+// bluetoothRemoteSocket.on("connect", () => {
+//     console.log('A client has connected');
+// })
+//
+// bluetoothRemoteSocket.on('error', (err) => {
+//     console.log(`server error:\n${err.stack}`);
+//     server.close();
+// });
+//
+// bluetoothRemoteSocket.on('message', (msg, rinfo) => {
+//     const msg_str = msg.toString('utf-8');
+//     if (msg_str.length > 1) {
+//         if (msg_str !== last_received) {
+//             const id = +msg_str[0];
+//             const state = +msg_str[1];
+//             const light = light_mapping.find((el) => el.id === id)
+//             last_received = msg_str;
+//             switch (light.type) {
+//                 case 'light':
+//                     setLightState(light.name, state === 1);
+//                     break;
+//                 case 'scene':
+//                     setZoneState(light.name, state === 1);
+//                     break;
+//             }
+//         }
+//     }
+// });
+//
+// bluetoothRemoteSocket.bind(BLE_UDP_SERVER_PORT, UDP_SERVER_ADDR);
 
 /**
  * IR REMOTE SOCKET
  */
 const irRemoteSocket = dgram.createSocket('udp4');
 let last = '';
-bluetoothRemoteSocket.on('listening', () => {
-    const address = bluetoothRemoteSocket.address() as any;
+irRemoteSocket.on('listening', () => {
+    const address = irRemoteSocket.address() as any;
     console.log(`UDP server listening on: ${address.address}:${address.port}`);
 });
 
-bluetoothRemoteSocket.on("connect", () => {
+irRemoteSocket.on("connect", () => {
     console.log('A client has connected');
 })
 
-bluetoothRemoteSocket.on('error', (err) => {
+irRemoteSocket.on('error', (err) => {
     console.log(`server error:\n${err.stack}`);
     server.close();
 });
 
-bluetoothRemoteSocket.on('message', (msg, rinfo) => {
-    console.log('message received', msg);
+irRemoteSocket.on('message', (msg, rinfo) => {
+    const data = JSON.parse(msg.toString('utf-8'));
+    console.log('message received', data);
+    if (data.evt === 'single') {
+        if (data.key === 'KEY_POWER') {
+            turnAllZonesOff();
+        }
+        if (data.key === 'KEY_1') {
+            toggleSceneForGroup('Home', 'BrightHOME');
+        }
+        if (data.key === 'KEY_2') {
+            toggleSceneForGroup('Home', 'MovietimeHOME');
+        }
+        if (data.key === 'KEY_3') {
+            toggleSceneForGroup('Home', 'FoodHOME');
+        }
+
+    }
 });
 
-bluetoothRemoteSocket.bind(42003, UDP_SERVER_ADDR);
+const UDP_SERVER_ADDR = '0.0.0.0'
+irRemoteSocket.bind(42002, UDP_SERVER_ADDR);
 
 export {server};

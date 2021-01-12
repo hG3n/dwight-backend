@@ -2,7 +2,9 @@ import {loadavg} from "os";
 
 const v3 = require('node-hue-api').v3
     , discovery = v3.discovery
-    , hueApi = v3.api;
+    , hueApi = v3.api
+    , GroupLightState = v3.lightStates.GroupLightState;
+
 
 const appName = 'dwight';
 const deviceName = 'example-code';
@@ -58,25 +60,47 @@ const hueCredentials = {
     key: 'D121EFB75D5968C25C56EBD527B27EBE'
 };
 
-const createHueSession = () => {
-    return v3.discovery.nupnpSearch()
-        .then((searchResults) => {
-            const host = searchResults[0].ipaddress;
-            return v3.api.createLocal(host).connect(hueCredentials.user);
-        })
+let HUE_SESSION = null;
+
+const getSession = () => {
+    if (HUE_SESSION === null) {
+        return v3.discovery.nupnpSearch()
+            .then((searchResults) => {
+                const host = searchResults[0].ipaddress;
+                const session = v3.api.createLocal(host).connect(hueCredentials.user);
+                HUE_SESSION = session;
+                return session;
+            });
+    } else {
+        return Promise.resolve(HUE_SESSION);
+    }
 }
 
 const getAvailableHueDevices = () => {
-    return createHueSession().then(async (api) => {
-        return Promise.resolve({api, lights: await api.lights.getAll()})
-    })
+    return getSession().then(async api =>
+        Promise.resolve({api, lights: await api.lights.getAll()})
+    );
 }
 
-const getAvailableHueGroups = () => {
-    return createHueSession().then(async (api) => {
-        return Promise.resolve({api, lights: await api.groups.getAll()})
-    })
+/// Meta calls
+const getAllAvailableGroups = () => {
+    return getSession().then(async api =>
+        Promise.resolve({api, lights: await api.groups.getAll()})
+    );
 }
+
+const getGroupByName = (name: string) => {
+    return getSession().then(async api =>
+        Promise.resolve({api, lights: await api.groups.getGroupByName(name)})
+    );
+}
+
+const getScenesByName = (name: string) => {
+    return getSession().then(async api =>
+        Promise.resolve({api, lights: await api.scenes.getSceneByName(name)})
+    );
+};
+
 
 export const setPlugState = (state: boolean) => {
     return getAvailableHueDevices()
@@ -93,7 +117,7 @@ export const setPlugState = (state: boolean) => {
 }
 
 export const setZoneState = (zone: string, state: boolean) => {
-    return getAvailableHueGroups()
+    return getAllAvailableGroups()
         .then(async (results) => {
             const api = results.api;
             const scene = results.lights.find(el => el.name === zone);
@@ -104,7 +128,6 @@ export const setZoneState = (zone: string, state: boolean) => {
         .then(async (data) => {
             return data.api.groups.getGroupState(data.scene.id);
         })
-
 }
 
 export const setLightState = (name: string, state: boolean) => {
@@ -119,6 +142,31 @@ export const setLightState = (name: string, state: boolean) => {
         .then(async (data) => {
             return data.api.lights.getLightState(data.light.id);
         })
+}
+
+export const setLightStateAsync = async (name: string, state: boolean) => {
+    const session = await getSession();
+    const devices = await getAvailableHueDevices();
+    const light = devices.lights.find(el => el.name === name);
+    const success = await session.lights.setLightState(light.id, {on: state});
+    if (success) {
+        return session.lights.getLightState(light.id);
+    }
+}
+
+export const turnAllZonesOff = async () => {
+    const devices = await getAvailableHueDevices();
+    return await devices.lights.map((dev) => {
+        return setLightStateAsync(dev.name, false);
+    });
+}
+
+export const toggleSceneForGroup = async (group: string, scene: string) => {
+    const found_scenes = await getScenesByName(scene);
+    const found_group = await getGroupByName(group);
+    const light_state = new GroupLightState().scene(found_scenes.lights[0].id);
+    const api = await getSession();
+    await api.groups.setGroupState(found_group.lights[0].id, light_state);
 }
 
 // Invoke the discovery and create user code
