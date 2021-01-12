@@ -1,10 +1,8 @@
-import {loadavg} from "os";
-
 const v3 = require('node-hue-api').v3
     , discovery = v3.discovery
     , hueApi = v3.api
-    , GroupLightState = v3.lightStates.GroupLightState;
-
+    , GroupLightState = v3.lightStates.GroupLightState
+    , LightState = v3.lightStates.LightState;
 
 const appName = 'dwight';
 const deviceName = 'example-code';
@@ -76,97 +74,103 @@ const getSession = () => {
     }
 }
 
-const getAvailableHueDevices = () => {
-    return getSession().then(async api =>
-        Promise.resolve({api, lights: await api.lights.getAll()})
-    );
+const getAllDevicesAsync = async () => {
+    const s = await getSession();
+    return await s.lights.getAll();
 }
 
-/// Meta calls
-const getAllAvailableGroups = () => {
-    return getSession().then(async api =>
-        Promise.resolve({api, lights: await api.groups.getAll()})
-    );
+const getAllGroups = async () => {
+    const s = await getSession();
+    return s.groups.getAll();
 }
 
-const getGroupByName = (name: string) => {
-    return getSession().then(async api =>
-        Promise.resolve({api, lights: await api.groups.getGroupByName(name)})
-    );
+const getGroupsByName = async (name: string) => {
+    const s = await getSession();
+    return s.groups.getGroupByName(name);
 }
 
-const getScenesByName = (name: string) => {
-    return getSession().then(async api =>
-        Promise.resolve({api, lights: await api.scenes.getSceneByName(name)})
-    );
+const getScenesByName = async (name: string) => {
+    const s = await getSession();
+    return s.scenes.getSceneByName(name);
 };
 
-
-export const setPlugState = (state: boolean) => {
-    return getAvailableHueDevices()
-        .then(async (results) => {
-            const api = results.api;
-            const plug = results.lights.find(el => el.name === SUBWOOFER_PLUG_NAME);
-            return Promise.resolve({
-                api, plug, prevOperationSuccess: await api.lights.setLightState(plug.id, {on: state})
-            });
-        })
-        .then(async (data) => {
-            return data.api.lights.getLightState(data.plug.id);
-        })
+export const setPlugState = async (state: boolean) => {
+    const s = await getSession();
+    const devices = await getAllDevicesAsync();
+    const plug = devices.find(el => el.name === SUBWOOFER_PLUG_NAME);
+    await s.lights.setLightState(plug.id, {on: state});
+    return s.lights.getLightState(plug.id);
 }
 
-export const setZoneState = (zone: string, state: boolean) => {
-    return getAllAvailableGroups()
-        .then(async (results) => {
-            const api = results.api;
-            const scene = results.lights.find(el => el.name === zone);
-            return Promise.resolve({
-                api, scene, prevOperationSuccess: await api.groups.setGroupState(scene.id, {on: state})
-            });
-        })
-        .then(async (data) => {
-            return data.api.groups.getGroupState(data.scene.id);
-        })
-}
-
-export const setLightState = (name: string, state: boolean) => {
-    return getAvailableHueDevices()
-        .then(async (results) => {
-            const api = results.api;
-            const light = results.lights.find(el => el.name === name);
-            return Promise.resolve({
-                api, light, prevOperationSuccess: await api.lights.setLightState(light.id, {on: state})
-            });
-        })
-        .then(async (data) => {
-            return data.api.lights.getLightState(data.light.id);
-        })
-}
-
-export const setLightStateAsync = async (name: string, state: boolean) => {
-    const session = await getSession();
-    const devices = await getAvailableHueDevices();
-    const light = devices.lights.find(el => el.name === name);
-    const success = await session.lights.setLightState(light.id, {on: state});
+export const setLightState = async (name: string, state: boolean) => {
+    const s = await getSession();
+    const devices = await getAllDevicesAsync();
+    const light = devices.find(el => el.name === name);
+    const success = await s.lights.setLightState(light.id, {on: state});
     if (success) {
-        return session.lights.getLightState(light.id);
+        return s.lights.getLightState(light.id);
     }
 }
 
 export const turnAllZonesOff = async () => {
-    const devices = await getAvailableHueDevices();
-    return await devices.lights.map((dev) => {
-        return setLightStateAsync(dev.name, false);
+    const devices = await getAllDevicesAsync();
+    return await devices.map((dev) => {
+        return setLightState(dev.name, false);
     });
 }
 
 export const toggleSceneForGroup = async (group: string, scene: string) => {
     const found_scenes = await getScenesByName(scene);
-    const found_group = await getGroupByName(group);
-    const light_state = new GroupLightState().scene(found_scenes.lights[0].id);
+    const found_group = await getGroupsByName(group);
+    const light_state = new GroupLightState().scene(found_scenes[0].id);
     const api = await getSession();
-    await api.groups.setGroupState(found_group.lights[0].id, light_state);
+    await api.groups.setGroupState(found_group[0].id, light_state);
 }
 
-// Invoke the discovery and create user code
+
+/// CYCLING
+const LIGHTS = [4, 5, 8];
+let CURRENT_LIGHT_IDX = 0;
+
+const tapLight = async (id) => {
+    const s = await getSession();
+    await s.lights.setLightState(id, new LightState().alertShort());
+}
+
+export const cycleLights = async (direction: 'left' | 'right') => {
+    let new_idx = CURRENT_LIGHT_IDX;
+    if (CURRENT_LIGHT_IDX === 0) {
+        if (direction === "right") {
+            new_idx++;
+        } else {
+            new_idx = LIGHTS.length - 1;
+        }
+    } else if (CURRENT_LIGHT_IDX === LIGHTS.length - 1) {
+        if (direction === "right") {
+            new_idx = 0;
+        } else {
+            new_idx--;
+        }
+    } else {
+        if (direction === "right") {
+            new_idx++
+        } else {
+            new_idx--
+        }
+    }
+    CURRENT_LIGHT_IDX = new_idx;
+    tapLight(LIGHTS[CURRENT_LIGHT_IDX]);
+}
+
+export const dimCurrentLight = async (brightness: 'up' | 'down') => {
+    const s = await getSession();
+    const light_id = LIGHTS[CURRENT_LIGHT_IDX]
+    await s.lights.setLightState(light_id, new LightState().bri_inc(brightness === 'up' ? 30 : -30))
+}
+
+export const toggleCurrentLight = async () => {
+    const s = await getSession();
+    const current_light_id = LIGHTS[CURRENT_LIGHT_IDX]
+    const light = await s.lights.getLight(current_light_id);
+    await s.lights.setLightState(current_light_id, {on: !light.state.on});
+}

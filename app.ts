@@ -10,7 +10,14 @@ import {InfoController} from "./info/InfoController";
 import {ListeningModes, onOpen, onWsClose, onWsError, onWsMessage} from "./sockets/WebSocketController";
 import {getStatus, getVolume, listeningMode} from "./sockets/ReceiverController";
 import compression from "compression";
-import { setPlugState, toggleSceneForGroup, turnAllZonesOff} from "./hue/HueController";
+import {
+    cycleLights,
+    dimCurrentLight,
+    setPlugState,
+    toggleCurrentLight,
+    toggleSceneForGroup,
+    turnAllZonesOff
+} from "./hue/HueController";
 import * as dgram from "dgram";
 
 
@@ -55,6 +62,7 @@ app.use('/info', InfoController);
  */
 export var SubwooferPlugState: boolean;
 SubwooferPlugState = false;
+// setPlugState(false).then(result => SubwooferPlugState = result);
 setPlugState(false).then(result => SubwooferPlugState = result);
 
 /**
@@ -189,71 +197,6 @@ wss.on('connection', (ws: WebSocket) => {
 });
 
 
-// /**
-//  * Remote Socket
-//  */
-// const BLE_UDP_SERVER_PORT = 42002;
-// const bluetoothRemoteSocket = dgram.createSocket('udp4');
-// let last_received = '';
-// const light_mapping = [
-//     {
-//         id: 1,
-//         type: 'scene',
-//         name: 'Lights'
-//     },
-//     {
-//         id: 2,
-//         type: 'light',
-//         name: 'Desk Corner'
-//     },
-//     {
-//         id: 3,
-//         type: 'light',
-//         name: 'Bed R'
-//     },
-//     {
-//         id: 4,
-//         type: 'light',
-//         name: 'Door'
-//     },
-// ]
-//
-// bluetoothRemoteSocket.on('listening', () => {
-//     const address = bluetoothRemoteSocket.address() as any;
-//     console.log(`UDP server listening on: ${address.address}:${address.port}`);
-// });
-//
-// bluetoothRemoteSocket.on("connect", () => {
-//     console.log('A client has connected');
-// })
-//
-// bluetoothRemoteSocket.on('error', (err) => {
-//     console.log(`server error:\n${err.stack}`);
-//     server.close();
-// });
-//
-// bluetoothRemoteSocket.on('message', (msg, rinfo) => {
-//     const msg_str = msg.toString('utf-8');
-//     if (msg_str.length > 1) {
-//         if (msg_str !== last_received) {
-//             const id = +msg_str[0];
-//             const state = +msg_str[1];
-//             const light = light_mapping.find((el) => el.id === id)
-//             last_received = msg_str;
-//             switch (light.type) {
-//                 case 'light':
-//                     setLightState(light.name, state === 1);
-//                     break;
-//                 case 'scene':
-//                     setZoneState(light.name, state === 1);
-//                     break;
-//             }
-//         }
-//     }
-// });
-//
-// bluetoothRemoteSocket.bind(BLE_UDP_SERVER_PORT, UDP_SERVER_ADDR);
-
 /**
  * IR REMOTE SOCKET
  */
@@ -275,7 +218,7 @@ irRemoteSocket.on('error', (err) => {
 
 irRemoteSocket.on('message', (msg, rinfo) => {
     const data = JSON.parse(msg.toString('utf-8'));
-    console.log('message received', data);
+    console.log('IR Key Event: ', data);
     if (data.evt === 'single') {
         if (data.key === 'KEY_POWER') {
             turnAllZonesOff();
@@ -290,6 +233,24 @@ irRemoteSocket.on('message', (msg, rinfo) => {
             toggleSceneForGroup('Home', 'FoodHOME');
         }
 
+        // cycling
+        if (data.key === 'KEY_LEFT') {
+            cycleLights('left');
+        }
+        if (data.key === 'KEY_RIGHT') {
+            cycleLights('right');
+        }
+        if (data.key === 'KEY_UP') {
+            dimCurrentLight('up');
+        }
+        if (data.key === 'KEY_DOWN') {
+            dimCurrentLight('down');
+        }
+
+        // toggle selected
+        if (data.key === 'KEY_OK') {
+            toggleCurrentLight();
+        }
     }
 });
 
