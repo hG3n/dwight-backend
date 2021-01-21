@@ -49,7 +49,7 @@
     "morgan": "^1.9.1",
     "node-hue-api": "^4.0.7",
     "query-string": "^6.11.1",
-    "socket.io": "^2.2.0",
+    "socket.io": "^2.4.0",
     "typescript": "^3.7"
   },
   "devDependencies": {
