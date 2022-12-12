@@ -37,7 +37,7 @@
     "cors": "^2.8.5",
     "eiscp": "git://github.com/tillbaks/node-eiscp.git",
     "es6-promise": "^4.2.8",
-    "express": "^4.17.1",
+    "express": "^4.17.3",
     "express-validator": "^6.1.1",
     "express-ws": "^4.0.0",
     "google-auth-library": "^6.0.0",
